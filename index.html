@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANDRÉ Ltda</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+  --white-pearl:#f8f8f5;
+  --white-soft:#ffffff;
+  --green-main:#1b5e20;
+  --green-light:#43a047;
+  --green-neon:#39ff14;
+  --green-soft:#e8f5e9;
+  --text:#1c1c1c;
+}
+
+body{
+  margin:0;
+  font-family:Arial, Helvetica, sans-serif;
+  background:var(--white-pearl);
+  color:var(--text);
+}
+
+header{
+  background:var(--white-soft);
+  padding:18px;
+  text-align:center;
+  border-bottom:3px solid var(--green-neon);
+  box-shadow:0 0 15px rgba(57,255,20,0.4);
+}
+
+header img{
+  width:120px;
+  filter: drop-shadow(0 0 10px var(--green-neon));
+}
+
+header h1{
+  margin:5px 0 0;
+  color:var(--green-main);
+  font-size:20px;
+  text-shadow:0 0 6px rgba(57,255,20,0.5);
+}
+
+nav{
+  display:flex;
+  justify-content:space-around;
+  background:var(--green-main);
+  box-shadow:0 0 12px rgba(57,255,20,0.3);
+}
+
+nav button{
+  flex:1;
+  padding:12px;
+  border:none;
+  background:transparent;
+  color:white;
+  font-weight:bold;
+  font-size:14px;
+  transition:0.3s;
+}
+
+nav button:hover{
+  background:var(--green-light);
+  box-shadow:0 0 10px var(--green-neon);
+}
+
+section{
+  display:none;
+  padding:15px;
+}
+
+section.active{
+  display:block;
+}
+
+input, select{
+  width:100%;
+  padding:12px;
+  margin-bottom:12px;
+  border:1px solid var(--green-light);
+  border-radius:8px;
+  font-size:14px;
+  background:white;
+  transition:0.3s;
+}
+
+input:focus, select:focus{
+  outline:none;
+  border:1px solid var(--green-neon);
+  box-shadow:0 0 8px var(--green-neon);
+}
+
+button.primary{
+  background:var(--green-main);
+  color:white;
+  border:none;
+  padding:14px;
+  width:100%;
+  border-radius:8px;
+  font-weight:bold;
+  transition:0.3s;
+}
+
+button.primary:hover{
+  background:var(--green-light);
+  box-shadow:0 0 12px var(--green-neon);
+}
+
+.card{
+  background:white;
+  padding:12px;
+  margin-bottom:12px;
+  border-radius:10px;
+  box-shadow:0 0 10px rgba(0,0,0,0.05);
+  transition:0.3s;
+}
+
+.card:hover{
+  box-shadow:0 0 12px rgba(57,255,20,0.4);
+}
+
+.small{
+  font-size:12px;
+  color:#555;
+}
+
+canvas{
+  background:white;
+  padding:12px;
+  border-radius:10px;
+  box-shadow:0 0 12px rgba(57,255,20,0.3);
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <img src="logo-assentamento.gif">
+  <h1>ANDRÉ Ltda</h1>
+</header>
+
+<nav>
+  <button onclick="show('caixa')">Caixa</button>
+  <button onclick="show('estoque')">Estoque</button>
+  <button onclick="show('financeiro')">Financeiro</button>
+  <button onclick="show('dashboard')">Dashboard</button>
+</nav>
+
+<!-- CAIXA -->
+<section id="caixa" class="active">
+  <h3>Venda - Leitor Código de Barras</h3>
+  <input id="barcode" placeholder="Código de Barras">
+  <input id="qty" type="number" placeholder="Quantidade" value="1">
+  <button class="primary" onclick="addToCart()">Adicionar</button>
+
+  <h4>Itens</h4>
+  <div id="cart"></div>
+
+  <button class="primary" onclick="finalizarVenda()">Finalizar Venda</button>
+</section>
+
+<!-- ESTOQUE -->
+<section id="estoque">
+  <h3>Cadastrar Produto</h3>
+  <input id="prodBarcode" placeholder="Código de Barras">
+  <input id="prodNome" placeholder="Nome do Produto">
+  <input id="prodPreco" type="number" placeholder="Preço">
+  <input id="prodQtd" type="number" placeholder="Quantidade">
+  <button class="primary" onclick="addProduto()">Salvar Produto</button>
+
+  <h4>Lista</h4>
+  <div id="listaEstoque"></div>
+</section>
+
+<!-- FINANCEIRO -->
+<section id="financeiro">
+  <h3>Resumo Financeiro</h3>
+  <div class="card">
+    <strong>Total de Vendas:</strong>
+    <div id="totalVendas"></div>
+  </div>
+  <div class="card">
+    <strong>Lucro Estimado:</strong>
+    <div id="lucro"></div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="dashboard">
+  <h3>Gráfico de Vendas</h3>
+  <canvas id="grafico"></canvas>
+</section>
+
+<script>
+let estoque = JSON.parse(localStorage.getItem("estoque")) || [];
+let vendas = JSON.parse(localStorage.getItem("vendas")) || [];
+let carrinho = [];
+
+function show(id){
+  document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  atualizar();
+}
+
+function save(){
+  localStorage.setItem("estoque",JSON.stringify(estoque));
+  localStorage.setItem("vendas",JSON.stringify(vendas));
+}
+
+function addProduto(){
+  estoque.push({
+    barcode:prodBarcode.value,
+    nome:prodNome.value,
+    preco:parseFloat(prodPreco.value),
+    qtd:parseInt(prodQtd.value)
+  });
+  save();
+  atualizar();
+}
+
+function atualizar(){
+  listaEstoque.innerHTML="";
+  estoque.forEach(p=>{
+    listaEstoque.innerHTML+=`
+    <div class="card">
+      ${p.nome} - R$ ${p.preco.toFixed(2)}
+      <div class="small">Estoque: ${p.qtd}</div>
+    </div>`;
+  });
+
+  totalVendas.innerText="R$ "+vendas.reduce((s,v)=>s+v.total,0).toFixed(2);
+  lucro.innerText="R$ "+(vendas.reduce((s,v)=>s+v.total,0)*0.3).toFixed(2);
+
+  atualizarGrafico();
+}
+
+function addToCart(){
+  let p=estoque.find(e=>e.barcode==barcode.value);
+  if(!p){alert("Produto não encontrado");return;}
+  if(p.qtd<qty.value){alert("Estoque insuficiente");return;}
+  carrinho.push({nome:p.nome,preco:p.preco,qtd:parseInt(qty.value)});
+  renderCart();
+}
+
+function renderCart(){
+  cart.innerHTML="";
+  carrinho.forEach(i=>{
+    cart.innerHTML+=`
+    <div class="card">
+      ${i.nome} x${i.qtd} - R$ ${(i.preco*i.qtd).toFixed(2)}
+    </div>`;
+  });
+}
+
+function finalizarVenda(){
+  let total=carrinho.reduce((s,i)=>s+i.preco*i.qtd,0);
+  vendas.push({data:new Date(),total});
+  carrinho.forEach(i=>{
+    let p=estoque.find(e=>e.nome==i.nome);
+    p.qtd-=i.qtd;
+  });
+  carrinho=[];
+  save();
+  renderCart();
+  atualizar();
+}
+
+function atualizarGrafico(){
+  const ctx=document.getElementById('grafico');
+  const dias=vendas.map(v=>new Date(v.data).toLocaleDateString());
+  const valores=vendas.map(v=>v.total);
+
+  new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:dias,
+      datasets:[{
+        label:'Vendas',
+        data:valores,
+        backgroundColor:'#66bb6a'
+      }]
+    }
+  });
+}
+
+atualizar();
+</script>
+
+</body>
+</html>
